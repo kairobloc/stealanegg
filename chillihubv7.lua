@@ -13,7 +13,7 @@ local Lighting = game:GetService("Lighting")
 local LocalPlayer = Players.LocalPlayer
 local KeyUrl = "https://link4m.net/nSmyHW"
 local TutorialUrl = "https://craftvip.github.io/free/getkey.html"
-local TargetScriptUrl = "https://raw.githubusercontent.com/kairobloc/stealanegg/refs/heads/main/chillihubv7.lua"
+local TargetScriptUrl = "https://raw.githubusercontent.com/ronnei/hihi/refs/heads/main/soicaiditmemay.lua"
 
 local ChilliAvatarId = "rbxassetid://92622270383869"  -- Hình quả ớt ngoài Menu
 local GiftBoxAssetId = "rbxassetid://115116611981430" -- Hình hộp quà bên trong Mini-game
