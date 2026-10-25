@@ -30,6 +30,7 @@ local InitialGuis = {}
 local ScriptConnections = {}
 local ActiveBlurEffect = nil
 local InputBlockerScreen = nil
+local MainScreenGui = nil
 local OpenKeySystemUI = nil
 
 task.spawn(function()
@@ -178,7 +179,7 @@ local function LoadMasterVault(): table
 end
 -- =========================================================================
 --   🌶️ CHILLI HUB V7 • KEY SYSTEM - STEAL AN EGG 🥚 (PHẦN 2/6)
---   XÁC THỰC KEY CHILLIHUBV7VIP · DỌN SẠCH BỘ NHỚ 0% LAG · TOAST HUD
+--   XÁC THỰC KEY CHILLIHUBV7VIP · TẢI SCRIPT AN TOÀN KHÔNG XÓA UI · TOAST
 -- =========================================================================
 
 local function CanPlayGachaToday(): boolean
@@ -336,25 +337,39 @@ local function RemoveScreenLockdown()
     end
 end
 
-local function CleanupKeySystemCompletely()
+-- KHỞI CHẠY SCRIPT GỐC AN TOÀN: CHỈ ẨN GIAO DIỆN (KHÔNG DESTROY)
+local function LaunchTargetScriptSafe(onErrorCallback: (string) -> ())
     RemoveScreenLockdown()
-    for _, conn in ipairs(ScriptConnections) do
-        if typeof(conn) == "RBXScriptConnection" and conn.Connected then
-            conn:Disconnect()
-        end
+    if MainScreenGui then
+        MainScreenGui.Enabled = false -- Ẩn giao diện đi, không xóa để không làm mất thread
     end
-    table.clear(ScriptConnections)
 
-    local guiNames = { "ChilliV7_GetKeyUI", "ChilliV7_ToastUI", "ChilliV7_InputBlocker" }
-    local containers = { CoreGui, LocalPlayer:FindFirstChild("PlayerGui") }
-    for _, c in ipairs(containers) do
-        if c then
-            for _, gName in ipairs(guiNames) do
-                local found = c:FindFirstChild(gName)
-                if found then pcall(function() found:Destroy() end) end
+    task.spawn(function()
+        local fetchOk, scriptContent = pcall(game.HttpGet, game, TargetScriptUrl)
+        if not fetchOk or not scriptContent or scriptContent == "" then
+            warn("[Chilli V7] Không thể tải mã nguồn script gốc: " .. tostring(scriptContent))
+            if MainScreenGui then MainScreenGui.Enabled = true end
+            if onErrorCallback then
+                onErrorCallback("❌ Lỗi mạng: Không tải được link GitHub!")
             end
+            return
         end
-    end
+
+        local compileOk, executable = pcall(loadstring, scriptContent)
+        if not compileOk or type(executable) ~= "function" then
+            warn("[Chilli V7] Lỗi biên dịch script gốc: " .. tostring(executable))
+            if MainScreenGui then MainScreenGui.Enabled = true end
+            if onErrorCallback then
+                onErrorCallback("❌ Lỗi cú pháp trong script gốc!")
+            end
+            return
+        end
+
+        local runOk, runError = pcall(executable)
+        if not runOk then
+            warn("[Chilli V7] Lỗi khi thực thi script: " .. tostring(runError))
+        end
+    end)
 end
 
 local function TerminateTargetScript()
@@ -368,19 +383,6 @@ local function TerminateTargetScript()
             end
         end
     end
-end
-
-local function LaunchTargetScriptClean(destroyKeyMenu: boolean)
-    if destroyKeyMenu then
-        CleanupKeySystemCompletely()
-    else
-        TakeGuiSnapshot()
-    end
-    task.spawn(function()
-        pcall(function()
-            loadstring(game:HttpGet(TargetScriptUrl))()
-        end)
-    end)
 end
 
 local function FormatTime(seconds: number): string
@@ -472,7 +474,7 @@ local function ShowLiveToast(titleText: string, initialSeconds: number, color: C
 end
 -- =========================================================================
 --   🌶️ CHILLI HUB V7 • KEY SYSTEM - STEAL AN EGG 🥚 (PHẦN 3/6)
---   CĂN CHỈNH CHIỀU CAO 405PX CHỐNG TRÀN · SCALE 0.92 · MÀU CHỮ DỊU MẮT
+--   CHIỀU CAO 395PX KHÔNG TRÀN ĐÁY · TỈ LỆ 0.95 · BẢNG MÀU TỐI DỊU MẮT
 -- =========================================================================
 
 local Languages = {
@@ -497,7 +499,7 @@ local Languages = {
         CopiedTutorial = "Đã sao chép link hướng dẫn vào clipboard!",
         Checking = "Đang xác nhận...",
         CheckingMsg = "Đang đối soát mã key...",
-        Success = "Xác nhận thành công! Đang mở Chilli Hub V7...",
+        Success = "Xác nhận thành công! Đang mở script...",
         Error = "Mã Key không hợp lệ hoặc đã hết hạn!",
         -- Hộp quà
         GachaTitle = "🎁 HỘP QUÀ MAY MẮN (1 LẦN/NGÀY)",
@@ -552,7 +554,7 @@ local Languages = {
         CopiedTutorial = "Tutorial link copied to clipboard!",
         Checking = "Checking...",
         CheckingMsg = "Verifying license key...",
-        Success = "Verified! Launching Chilli Hub V7...",
+        Success = "Verified! Launching script...",
         Error = "Invalid key or expired license!",
         -- Mystery Box
         GachaTitle = "🎁 MYSTERY BOX (1 TIME/DAY)",
@@ -602,7 +604,10 @@ local function PlaySpringButton(btn: GuiButton)
 end
 
 OpenKeySystemUI = function()
-    if CoreGui:FindFirstChild("ChilliV7_GetKeyUI") then CoreGui.ChilliV7_GetKeyUI:Destroy() end
+    if MainScreenGui and MainScreenGui.Parent then
+        MainScreenGui.Enabled = true
+        return
+    end
 
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "ChilliV7_GetKeyUI"
@@ -610,12 +615,13 @@ OpenKeySystemUI = function()
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     pcall(function() ScreenGui.Parent = CoreGui end)
     if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+    MainScreenGui = ScreenGui
 
-    -- MainFrame: Thu gọn kích thước xuống 420x405 để chống tràn đáy màn hình
+    -- MainFrame: Giảm chiều cao từ 470px xuống 395px để chữ đáy cách mép an toàn
     local MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
     MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-    MainFrame.Size = UDim2.new(0, 420, 0, 405)
+    MainFrame.Size = UDim2.new(0, 420, 0, 395)
     MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
     MainFrame.BackgroundColor3 = Color3.fromRGB(16, 18, 24)
     MainFrame.BorderSizePixel = 0
@@ -624,9 +630,8 @@ OpenKeySystemUI = function()
     MainFrame.Parent = ScreenGui
     Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 16)
 
-    -- Tỷ lệ 0.92 giúp giao diện vừa vặn hoàn hảo trên mọi độ phân giải điện thoại
     local MainScale = Instance.new("UIScale", MainFrame)
-    MainScale.Scale = 0.92
+    MainScale.Scale = 0.95
 
     local MainStroke = Instance.new("UIStroke", MainFrame)
     MainStroke.Thickness = 1
@@ -785,9 +790,9 @@ OpenKeySystemUI = function()
     QuickPasteBtn.ZIndex = 33
     QuickPasteBtn.Parent = InputContainer
     Instance.new("UICorner", QuickPasteBtn).CornerRadius = UDim.new(0, 6)
-  -- =========================================================================
+    -- =========================================================================
 --   🌶️ CHILLI HUB V7 • KEY SYSTEM - STEAL AN EGG 🥚 (PHẦN 4/6)
---   2 NÚT MINI-GAME SONG SONG (1 HÀNG) · THÔNG BÁO ĐÁY KHÔNG BỊ TRÀN VIỀN
+--   HÀNG MINI-GAME SONG SONG (1 DÒNG) · THÔNG BÁO ĐÁY CÂN ĐỐI KHÔNG BỊ TRÀN
 -- =========================================================================
 
     local ButtonsRow = Instance.new("Frame")
@@ -867,7 +872,7 @@ OpenKeySystemUI = function()
     NoticeText.ZIndex = 32
     NoticeText.Parent = NoticeCard
 
-    -- HÀNG ĐÔI 2 NÚT MINI-GAME NẰM CÙNG 1 DÒNG (TIẾT KIỆM 38PX CHIỀU CAO CHỐNG TRÀN ĐÁY)
+    -- 2 NÚT MINI-GAME XẾP SONG SONG NẰM TRÊN CÙNG 1 HÀNG
     local MiniGamesRow = Instance.new("Frame")
     MiniGamesRow.Size = UDim2.new(1, -36, 0, 36)
     MiniGamesRow.Position = UDim2.new(0, 18, 0, 299)
@@ -910,7 +915,7 @@ OpenKeySystemUI = function()
     SpinGameStroke.Color = (not initSpin.Played) and Color3.fromRGB(52, 62, 82) or Color3.fromRGB(34, 39, 50)
     SpinGameStroke.Thickness = 1
 
-    -- DÒNG CHỮ ĐÁY CÂN ĐỐI (CÁCH MÉP DƯỚI RỘNG RÃI, KHÔNG BỊ TRÀN ẨN)
+    -- DÒNG CHỮ ĐÁY NẰM GỌN TRONG KHUNG (CÁCH MÉP ĐÁY 15PX)
     local StatusMsg = Instance.new("TextLabel")
     StatusMsg.Size = UDim2.new(1, -36, 0, 22)
     StatusMsg.Position = UDim2.new(0, 18, 0, 344)
@@ -1071,7 +1076,7 @@ OpenKeySystemUI = function()
     GachaResultBanner.ZIndex = 46
     GachaResultBanner.Parent = GachaModal
     Instance.new("UICorner", GachaResultBanner).CornerRadius = UDim.new(0, 8)
-  -- =========================================================================
+    -- =========================================================================
 --   🌶️ CHILLI HUB V7 • KEY SYSTEM - STEAL AN EGG 🥚 (PHẦN 5/6)
 --   VÒNG QUAY TRÒN ĐỐI XỨNG · KIM CHỈ ĐỈNH · NÚT BẤM BÊN DƯỚI
 -- =========================================================================
@@ -1265,9 +1270,9 @@ OpenKeySystemUI = function()
     SpinFooterNote.TextWrapped = true
     SpinFooterNote.ZIndex = 56
     SpinFooterNote.Parent = SpinModal
-  -- =========================================================================
+    -- =========================================================================
 --   🌶️ CHILLI HUB V7 • KEY SYSTEM - STEAL AN EGG 🥚 (PHẦN 6/6)
---   LOGIC VÒNG QUAY 360° · HỘP QUÀ 5/95 · GIẢI PHÓNG TOÀN BỘ BỘ NHỚ KHI VÀO GAME
+--   XỬ LÝ SỰ KIỆN · THỰC THI SCRIPT GỐC KHÔNG LỖI THREAD · LUỒNG DÙNG THỬ
 -- =========================================================================
 
     local isRollingMutex = false
@@ -1389,7 +1394,7 @@ OpenKeySystemUI = function()
         isSpinningMutex = false
     end)
 
-    -- MỞ HỘP QUÀ: 5% NOKEY (TẮT HẲN MENU & VÀO SCRIPT GỐC) / 95% GETKEY
+    -- MỞ HỘP QUÀ: 5% NOKEY (ẨN MENU & CHẠY SCRIPT GỐC) / 95% GETKEY
     local function ExecuteBoxRoll(chosenBox: TextButton, otherBox: TextButton, chosenStroke: UIStroke, chosenMask: Frame, chosenTitle: TextLabel, chosenHint: TextLabel)
         if isRollingMutex then return end
         isRollingMutex = true
@@ -1431,7 +1436,10 @@ OpenKeySystemUI = function()
             Save24hKey(GetSecondsUntilMidnightGMT7())
             task.wait(0.8)
 
-            LaunchTargetScriptClean(true)
+            LaunchTargetScriptSafe(function(errMsg)
+                StatusMsg.Text = errMsg
+                StatusMsg.TextColor3 = Color3.fromRGB(225, 90, 110)
+            end)
         else
             chosenStroke.Color = Color3.fromRGB(190, 35, 68)
             chosenTitle.Text = Languages[CurrentLang].BoxLostTitle
@@ -1544,7 +1552,14 @@ OpenKeySystemUI = function()
             StatusMsg.TextColor3 = Color3.fromRGB(110, 231, 183)
 
             task.wait(0.3)
-            LaunchTargetScriptClean(true)
+            -- Ẩn UI và chạy script gốc an toàn
+            LaunchTargetScriptSafe(function(errMsg)
+                isChecking = false
+                CheckKeyBtn.Text = Languages[CurrentLang].CheckKey
+                CheckKeyBtn.BackgroundColor3 = Color3.fromRGB(24, 28, 38)
+                StatusMsg.Text = errMsg
+                StatusMsg.TextColor3 = Color3.fromRGB(225, 90, 110)
+            end)
         else
             isChecking = false
             CheckKeyBtn.Text = Languages[CurrentLang].CheckKey
@@ -1608,19 +1623,19 @@ OpenKeySystemUI = function()
     end)
 
     MainFrame.BackgroundTransparency = 1
-    MainScale.Scale = 0.85
+    MainScale.Scale = 0.88
     TweenService:Create(MainFrame, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 0 }):Play()
-    TweenService:Create(MainScale, TweenInfo.new(0.26, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 0.92 }):Play()
+    TweenService:Create(MainScale, TweenInfo.new(0.26, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 0.95 }):Play()
 end
 
 -- =========================================================================
---   LUỒNG CHÍNH: KHỞI ĐỘNG VỚI 2 PHÚT DÙNG THỬ HOẶC CHẠY SCRIPT GỐC NGAY
+--   LUỒNG CHÍNH: NẾU ĐÃ CÓ KEY HỢP LỆ THÌ CHẠY THẲNG SCRIPT GỐC
 -- =========================================================================
 
 local keyTimeLeft = GetKeyRemainingTime()
 if keyTimeLeft and keyTimeLeft > 0 then
     ShowLiveToast("Chilli Hub V7 • Key System", keyTimeLeft, Color3.fromRGB(190, 35, 68), 4)
-    LaunchTargetScriptClean(true)
+    LaunchTargetScriptSafe(nil)
     return
 end
 
@@ -1648,7 +1663,8 @@ if remaining <= 0 then
     return
 else
     ShowLiveToast("Chilli Hub V7 • Dùng thử 2 phút", remaining, Color3.fromRGB(190, 35, 68), 8)
-    LaunchTargetScriptClean(false)
+    TakeGuiSnapshot()
+    LaunchTargetScriptSafe(nil)
 
     task.spawn(function()
         local saveInterval = 0
