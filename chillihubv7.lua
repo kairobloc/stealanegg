@@ -1,6 +1,6 @@
 -- =========================================================================
 --   🌶️ CHILLI HUB V7 • KEY SYSTEM - STEAL AN EGG 🥚 (PHẦN 1/6)
---   LINK GETKEY MỚI · ĐỒNG BỘ KEY CHILLIHUBV7VIP · LƯU TRỮ ĐA TẦNG
+--   TARGET: SOICAIDITMEMAY.LUA · CHỐNG XÓA FILE ĐA TẦNG · CHU KỲ 00:00 GMT+7
 -- =========================================================================
 
 local TweenService = game:GetService("TweenService")
@@ -13,7 +13,7 @@ local Lighting = game:GetService("Lighting")
 local LocalPlayer = Players.LocalPlayer
 local KeyUrl = "https://link4m.net/nSmyHW"
 local TutorialUrl = "https://craftvip.github.io/free/getkey.html"
-local TargetScriptUrl = "https://raw.githubusercontent.com/kairobloc/stealanegg/refs/heads/main/chillihubv7.lua"
+local TargetScriptUrl = "https://raw.githubusercontent.com/ronnei/hihi/refs/heads/main/soicaiditmemay.lua"
 
 local ChilliAvatarId = "rbxassetid://92622270383869"  -- Hình quả ớt ngoài Menu
 local GiftBoxAssetId = "rbxassetid://115116611981430" -- Hình hộp quà bên trong Mini-game
@@ -179,7 +179,7 @@ local function LoadMasterVault(): table
 end
 -- =========================================================================
 --   🌶️ CHILLI HUB V7 • KEY SYSTEM - STEAL AN EGG 🥚 (PHẦN 2/6)
---   XÁC THỰC KEY CHILLIHUBV7VIP · TẢI SCRIPT AN TOÀN KHÔNG XÓA UI · TOAST
+--   XÁC THỰC KEY CHILLIHUBV7VIP · NẠP SCRIPT AN TOÀN (KHÔNG DESTROY UI)
 -- =========================================================================
 
 local function CanPlayGachaToday(): boolean
@@ -337,20 +337,20 @@ local function RemoveScreenLockdown()
     end
 end
 
--- KHỞI CHẠY SCRIPT GỐC AN TOÀN: CHỈ ẨN GIAO DIỆN (KHÔNG DESTROY)
+-- KHỞI CHẠY SCRIPT GỐC AN TOÀN: CHỈ ẨN GIAO DIỆN (GIỮ THREAD KHÔNG BỊ HỦY)
 local function LaunchTargetScriptSafe(onErrorCallback: (string) -> ())
     RemoveScreenLockdown()
     if MainScreenGui then
-        MainScreenGui.Enabled = false -- Ẩn giao diện đi, không xóa để không làm mất thread
+        MainScreenGui.Enabled = false
     end
 
     task.spawn(function()
         local fetchOk, scriptContent = pcall(game.HttpGet, game, TargetScriptUrl)
         if not fetchOk or not scriptContent or scriptContent == "" then
-            warn("[Chilli V7] Không thể tải mã nguồn script gốc: " .. tostring(scriptContent))
+            warn("[Chilli V7] Không thể nạp script gốc: " .. tostring(scriptContent))
             if MainScreenGui then MainScreenGui.Enabled = true end
             if onErrorCallback then
-                onErrorCallback("❌ Lỗi mạng: Không tải được link GitHub!")
+                onErrorCallback("❌ Lỗi mạng: Không tải được link script gốc!")
             end
             return
         end
@@ -367,7 +367,7 @@ local function LaunchTargetScriptSafe(onErrorCallback: (string) -> ())
 
         local runOk, runError = pcall(executable)
         if not runOk then
-            warn("[Chilli V7] Lỗi khi thực thi script: " .. tostring(runError))
+            warn("[Chilli V7] Lỗi thực thi script gốc: " .. tostring(runError))
         end
     end)
 end
@@ -617,7 +617,6 @@ OpenKeySystemUI = function()
     if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
     MainScreenGui = ScreenGui
 
-    -- MainFrame: Giảm chiều cao từ 470px xuống 395px để chữ đáy cách mép an toàn
     local MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
     MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -792,7 +791,7 @@ OpenKeySystemUI = function()
     Instance.new("UICorner", QuickPasteBtn).CornerRadius = UDim.new(0, 6)
     -- =========================================================================
 --   🌶️ CHILLI HUB V7 • KEY SYSTEM - STEAL AN EGG 🥚 (PHẦN 4/6)
---   HÀNG MINI-GAME SONG SONG (1 DÒNG) · THÔNG BÁO ĐÁY CÂN ĐỐI KHÔNG BỊ TRÀN
+--   2 NÚT MINI-GAME SONG SONG (1 HÀNG) · THÔNG BÁO ĐÁY CÂN ĐỐI KHÔNG TRÀN
 -- =========================================================================
 
     local ButtonsRow = Instance.new("Frame")
@@ -915,7 +914,7 @@ OpenKeySystemUI = function()
     SpinGameStroke.Color = (not initSpin.Played) and Color3.fromRGB(52, 62, 82) or Color3.fromRGB(34, 39, 50)
     SpinGameStroke.Thickness = 1
 
-    -- DÒNG CHỮ ĐÁY NẰM GỌN TRONG KHUNG (CÁCH MÉP ĐÁY 15PX)
+    -- DÒNG CHỮ ĐÁY CÂN ĐỐI (CÁCH MÉP DƯỚI RỘNG RÃI, KHÔNG TRÀN ẨN)
     local StatusMsg = Instance.new("TextLabel")
     StatusMsg.Size = UDim2.new(1, -36, 0, 22)
     StatusMsg.Position = UDim2.new(0, 18, 0, 344)
@@ -1552,7 +1551,6 @@ OpenKeySystemUI = function()
             StatusMsg.TextColor3 = Color3.fromRGB(110, 231, 183)
 
             task.wait(0.3)
-            -- Ẩn UI và chạy script gốc an toàn
             LaunchTargetScriptSafe(function(errMsg)
                 isChecking = false
                 CheckKeyBtn.Text = Languages[CurrentLang].CheckKey
